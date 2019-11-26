@@ -13,4 +13,4 @@
             "QUIT": quit_handler,  //disconnect from server
             "TOPIC": topic_handler, //changes topic of channel
             "WALLOPS": wallops_handler, //send message to everyone on the server
-            "WHO": who_handler,  //returns lists of user which matches ""
+            "WHO": who_handler,  //returns lists of user which matches ""5
