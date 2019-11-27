@@ -34,7 +34,7 @@ class IRCBot(object):
     def recieve(self):
         try:
             self.rec_buffer += self.socket.recv(1000).decode()
-            print(self.rec_buffer)
+            #print(self.rec_buffer)
 
 
         except IOError as e:
@@ -63,6 +63,7 @@ class IRCBot(object):
             line_split = {}
             line_commands = {}
             line_arguments = {}
+            arguments = {}
             command = ""
             msg = ""
             msg_from = ""
@@ -73,15 +74,30 @@ class IRCBot(object):
                 if (line_split[0] == ""):
                     line_split = line_split[1:]
 
-                if (len(line_split) > 1):
-                    msg = line_split[-1]
+                    if (len(line_split) > 1):
+                        msg = line_split[-1]
+
+                elif (len(line_split) > 1):
+                        msg_from = line_split[-1]
+
+                
 
                 if (line_split[0].find(" ") != -1):
                     line_arguments = line_split[0].split(" ")
 
-                    if (len(line_arguments) > 1):
+                    if (len(line_arguments) > 2):
                         command = line_arguments[1]
-                        
+                        msg_from = line_arguments[0]
+                        if (line_arguments[2] == self.nickname and len(line_arguments) > 3):
+                            arguments = line_arguments[3:]
+                            
+                    else:
+                        command = line_arguments[0]
+
+            print(msg_from + " (" + command + str(arguments) +  ")> " + msg)
+
+            #self.handle_command(command,arguments,msg_from,msg)
+
 
 
 
