@@ -36,6 +36,8 @@ class IRCBot(object):
             self.send_msg("JOIN #" + self.channel)
 
     def send_msg(self, msg):
+
+        print(">>> " + msg)
         self.socket.send((msg + "\r\n").encode())
 
     def recieve(self):
@@ -71,7 +73,7 @@ class IRCBot(object):
             command_args = {}
             msg = ""
 
-            #print(line)
+            print("<<< " + line)
 
             if (line.find(":") != -1):
                 line_split = line.strip(":").split(":")
@@ -98,7 +100,6 @@ class IRCBot(object):
 
         def pong_handler():
             self.send_msg("PONG " + msg)
-            print("pong")
 
         def privmsg_handler():
             msg_from = args[0].split("!")[0]
@@ -127,7 +128,7 @@ class IRCBot(object):
                 print(msg_from + ": " + msg)
                 self.send_msg("PRIVMSG " + msg_from + " :fuck off you stupid cunt")
 
-        print(command)
+        #print(command)
         command_handlers = {
             "PING": pong_handler,
             "PRIVMSG": privmsg_handler
@@ -146,21 +147,24 @@ class IRCBot(object):
             if(not self.buffer_empty()):
                 self.parse_buffer()
 
+def main():
 
+    parser = argparse.ArgumentParser(description = "A bot for the irc protocol")
+    parser.add_argument('--server', help="server to connect to (default = '127.0.0.1')", default = "127.0.0.1")
+    parser.add_argument('--nick', help="nickname to use on the server (default = 'Bot')", default = "Bot")
+    parser.add_argument('--user', help="username to use on the server (default = 'Bot')", default = "Bot")
+    parser.add_argument('--name', help="real name to use on the server (default = 'Bot')", default = "Bot")
+    parser.add_argument('--channel', help="channel to connect to on the server (none by default)", default = "")
 
-parser = argparse.ArgumentParser(description = "A bot for the irc protocol")
-parser.add_argument('--server', help="server to connect to (default = '127.0.0.1')", default = "127.0.0.1")
-parser.add_argument('--nick', help="nickname to use on the server (default = 'Bot')", default = "Bot")
-parser.add_argument('--user', help="username to use on the server (default = 'Bot')", default = "Bot")
-parser.add_argument('--name', help="real name to use on the server (default = 'Bot')", default = "Bot")
-parser.add_argument('--channel', help="channel to connect to on the server (none by default)", default = "")
+    print("\n ___ ___  ___ ___      _ ")
+    print("|_ _| _ \\/ __| _ ) ___| |_ ")
+    print(" | ||   / (__| _ \\/ _ \\  _|")
+    print("|___|_|_\\\\___|___/\\___/\\__|\n")
 
-print(" ___ ___  ___ ___      _ ")
-print("|_ _| _ \\/ __| _ ) ___| |_ ")
-print(" | ||   / (__| _ \\/ _ \\  _|")
-print("|___|_|_\\\\___|___/\\___/\\__|")
+    args = parser.parse_args()
 
-args = parser.parse_args()
+    bot = IRCBot(ip = args.server, user = args.user, name = args.name, nick = args.nick, channel = args.channel)
+    bot.run()
 
-bot = IRCBot(ip = args.server, user = args.user, name = args.name, nick = args.nick, channel = args.channel)
-bot.run()
+if __name__ == "__main__":
+    main()
