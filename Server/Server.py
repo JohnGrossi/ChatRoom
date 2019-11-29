@@ -25,7 +25,88 @@ class Client(object):
     }
     #add people
     #remove people
+
+    #set up all client variables etc
+    def init(self, server, socket):
+        self.server = server
+        self.socket = socket
+        self.writeBuffer = ""
+        #etc
+        
+    #def all commands, ie join, privmsg etc
+    def join():
+
+    def part():
+
+    def nick():
+
+    def list():
+
+    def privmsg():
+
+    #def notice():
+
+    def ping():
+
+    def pong():
+
+    def wallops():
+
+    def who():
+
+    def topic():
+
+    def quit():
+
+
+    commands = {    #switch on commands
+    "JOIN" : join() #calls join handler
+    "PART" : part()
+    "NICK" : nick()
+    "LIST" : list()
+    "PRIVMSG" : privmsg()
+    "NOTICE" : privmsg()
+    "PING" : ping()
+    "PONG" : pong()
+    "WALLOPS" : wallops()
+    "WHO" : who()
+    "TOPIC" : topic()
+    "QUIT" : quit()
+    #default 421?
+    }
+
+    def message(self, message):
+        self.writeBuffer += message + "\r\n"
+
+    def reply(self, message):
+        self.message(": %s %s" % (self.server, message))
+
+    #Error Replies:
+    def ERR_NOSUCHNICK(self, nickname):
+        self.reply("401 %s :No such nick/channel" % nickname)
+    
+    def ERR_NOSUCHCHANNEL(self, channel):
+        self.reply("403 %s :No such channel" % channel)
+    
+    def ERR_UNKNOWNCOMMAND(self, command):
+        self.reply("421 %s :Unknown command" % command)
+    
+    def ERR_NONICKNAMEGIVEN():
+        self.reply("431 :No nickname given")
+    
+    def ERR_NICKNAMEINUSE(self, nickname):
+        self.reply("433 %s :Nickname is already in use" % nickname)
+    
+    def ERR_USERNOTINCHANNEL(self, nickname, channel):
+        self.reply("441 %s %s :They aren't on that channel" % (nickname, channel))
+
+    def ERR_NEEDMOREPARAMS(self, command):
+        self.reply("461 %s :Not enough parameters" % command)
+    
+    #Command responses:
+    #RPL_TOPIC, etc
     return
+
 class Server(object):
     def __init__(self):
         self.servername = 'IRC SERVER'
