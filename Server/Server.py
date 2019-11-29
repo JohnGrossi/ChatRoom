@@ -8,78 +8,99 @@ import time
 import argparse
 
 class Client(object):
-    commandList = {
-    "JOIN":___,
-    "LIST":___,
-    "MOTD":___,
-    "NAMES":__,
-    "NICK":___,
-    "PART":___,
-    "PING":___,
-    "PONG":___,
-    "PRIVMSG":_,
-    "QUIT":___,
-    "TOPIC":__,
-    "WALLOPS":_,
-    "WHO":____,
-    }
-    #add people
-    #remove people
-
     #set up all client variables etc
     def init(self, server, socket):
         self.server = server
         self.socket = socket
+        self.realName = None
+        self.nickname = None
         self.writeBuffer = ""
         #etc
+
+    
+    def join(self, arguments):
+
+    def part(self, arguments):
+
+    def nick(self, arguments):
+        if len(arguments) == 0:
+            ERR_NONICKNAMEGIVEN()
+            return
+        newNickname = arguments[0]
         
-    #def all commands, ie join, privmsg etc
-    def join():
-
-    def part():
-
-    def nick():
-
-    def list():
-
-    def privmsg():
-
-    #def notice():
-
-    def ping():
-
-    def pong():
-
-    def wallops():
-
-    def who():
-
-    def topic():
-
-    def quit():
+        #check if the new nickname is already in use by a client
+        client = server.getClient(newNickname)
+        if client is None:
+            #check if nickname is under the RFC limit
+            if len(arguments[0]) < 9:
+                #change in server dictionary etc
+            else:
+                ERR_ERRONEUSNICKNAME()
+        else:
+            ERR_NICKNAMEINUSE()
+        
+        
 
 
-    commands = {    #switch on commands
-    "JOIN" : join() #calls join handler
-    "PART" : part()
-    "NICK" : nick()
-    "LIST" : list()
-    "PRIVMSG" : privmsg()
-    "NOTICE" : privmsg()
-    "PING" : ping()
-    "PONG" : pong()
-    "WALLOPS" : wallops()
-    "WHO" : who()
-    "TOPIC" : topic()
-    "QUIT" : quit()
-    #default 421?
-    }
+    def listHandler(self, arguments):
+
+    def privmsg(self, arguments):
+
+    #def notice(self, arguments):
+
+    def ping(self, arguments):
+        if len(arguments) == 0:
+            ERR_NOORIGIN()
+        else:
+            self.reply("PONG %s" % arguments[0])
+
+    def pong(self, arguments):
+        pass
+
+    def wallops(self, arguments):
+
+    def who(self, arguments):
+
+    def topic(self, arguments):
+
+    def quit(self, arguments):
+        if len(arguments) == 0:
+            quitMsg = self.nickname
+        else:
+            quitMsg = arguments[0]
+        self.disconnect(quitMsg)
+
+    def commandHandler(self, command, arguments):
+        commands = {
+        "JOIN" : join
+        "PART" : part
+        "NICK" : nick
+        "LIST" : listHandler
+        "PRIVMSG" : privmsg
+        "NOTICE" : privmsg
+        "PING" : ping
+        "PONG" : pong
+        "WALLOPS" : wallops
+        "WHO" : who
+        "TOPIC" : topic
+        "QUIT" : quit
+        }        
+
+        try:
+            commands[command](self, arguments)
+        except KeyError:
+            self.ERR_UNKNOWNCOMMAND()
+
+
+    def disconnect(self, message):
+        self.reply("QUIT :%s" % message)
+        #remove client & close socket
 
     def message(self, message):
         self.writeBuffer += message + "\r\n"
 
     def reply(self, message):
-        self.message(": %s %s" % (self.server, message))
+        self.message(":%s %s" % (self.server, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
@@ -88,11 +109,17 @@ class Client(object):
     def ERR_NOSUCHCHANNEL(self, channel):
         self.reply("403 %s :No such channel" % channel)
     
+    def ERR_NOORIGIN(self):
+        self.reply("409 :No origin specified")
+    
     def ERR_UNKNOWNCOMMAND(self, command):
         self.reply("421 %s :Unknown command" % command)
     
     def ERR_NONICKNAMEGIVEN():
         self.reply("431 :No nickname given")
+    
+    def ERR_ERRONEUSNICKNAME(self, nickname):
+        self.reply("432 %s :Erroneus nickname" % nickname)
     
     def ERR_NICKNAMEINUSE(self, nickname):
         self.reply("433 %s :Nickname is already in use" % nickname)
@@ -112,6 +139,11 @@ class Server(object):
         self.servername = 'IRC SERVER'
         self.channels = {}
         self.clients = {}
+        self.nicknames = {} #dictionary keys = nickname & values = client
+
+    def getClient(self, nickname):
+        return self.nicknames.get(nickname)
+
 
     def start(self):
         HEADER_LENGTH = 10
