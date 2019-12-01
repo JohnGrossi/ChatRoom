@@ -45,7 +45,6 @@ class IRCBot(object):
             self.rec_buffer += self.socket.recv(1000).decode()
             #print(self.rec_buffer)
 
-
         except IOError as e:
                 # This is normal on non blocking connections - when there are no incoming data error is going to be raised
                 # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
