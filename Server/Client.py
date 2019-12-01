@@ -94,8 +94,10 @@ class IRCBot(object):
 
         if (len(args) == 1):
             command = args[0]
-        else:
+        elif (len(args) >= 2):
             command = args[1]
+        else:
+            return
 
         def pong_handler():
             self.send_msg("PONG " + msg)

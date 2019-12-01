@@ -9,11 +9,10 @@ import argparse
 
 class Client(object):
     #set up all client variables etc
-    def __init__(self, server, socket):
-        self.server = server
+    def __init__(self, socket, server, ip):
         self.socket = socket
-        self.realName = None
-        self.nickname = None
+        self.server = server
+        self.ip = ip
         self.writeBuffer = ""
         self.rec_buffer = ""
         self.nick = ""
@@ -22,7 +21,6 @@ class Client(object):
         self.registered = False
         self.line_regex = re.compile(r"\r?\n")
         #etc
-<<<<<<< HEAD
 
     #for testing
     def get_connection(self):
@@ -69,34 +67,41 @@ class Client(object):
             else:
                 self.register_client(command_args)
 
+
     def register_client(self,args):
         if(args[0] == "USER"):
             if(len(args) < 5):
-                ERR_NEEDMOREPARAMS(args[0])
+                self.ERR_NEEDMOREPARAMS(args[0])
                 return
 
             self.name = args[-1]
             self.user = [1]
         if(args[0] == "NICK"):
             if(len(args) < 2):
-                ERR_NEEDMOREPARAMS(args[0])
+                self.ERR_NEEDMOREPARAMS(args[0])
                 return
-            # if(self.server.check_nick_collision(args[1])): #need to implement
-            #     return
+            if(args[1] in self.server.nicknames.keys()):
+                self.ERR_NICKNAMEINUSE(args[1])
             self.nick = args[1]
 
         if(self.nick != "" and self.user != ""):
             self.registered = True
-            #self.message("registered")
-            #self.send_reg_replies() #need to implement
 
+            self.send_reg_replies() #need to implement
 
+    def send_reg_replies(self):
+        self.RPL_WELCOME()
+        self.RPL_YOURHOST()
+        self.RPL_CREATED()
+        self.RPL_MYINFO()
+        self.RPL_LUSERCLIENT()
+        self.ERR_NOMOTD()
 
 
     def handle_command(self, args):
-        print(args)
+        #print(args)
         command = args[0]
-        print(command + " > " + str(args))
+        #print(command + " > " + str(args))
 
         #def all commands, ie join, privmsg etc
         def join():
@@ -105,27 +110,23 @@ class Client(object):
         def part():
             print("part")
 
-        def nick():
-            print("nick")
-
             #look at
-        def nick(self, arguments):
-            if len(arguments) == 0:
-                ERR_NONICKNAMEGIVEN()
+        def nick():
+            if len(args) < 2:
+                self.ERR_NONICKNAMEGIVEN()
                 return
-            newNickname = arguments[0]
+            newNickname = args[1]
 
             #check if the new nickname is already in use by a client
-            client = server.getClient(newNickname)
-            if client is None:
+            if newNickname not in self.server.nicknames.keys():
                 #check if nickname is under the RFC limit
-                if len(arguments[0]) < 9:
-                    print("")
-                    #change in server dictionary etc
+                if len(newNickname) < 9:
+                    del self.server.nicknames[self.nick]
+                    self.server.nicknames[newNickname] = self
                 else:
-                    ERR_ERRONEUSNICKNAME()
+                    self.ERR_ERRONEUSNICKNAME()
             else:
-                ERR_NICKNAMEINUSE()
+                self.ERR_NICKNAMEINUSE()
 
         def list():
             print("list")
@@ -142,11 +143,11 @@ class Client(object):
             print("pong")
 
         #look at
-        def ping(self, arguments):
-            if len(arguments) == 0:
+        def ping():
+            if len(args) < 2:
                 ERR_NOORIGIN()
             else:
-                self.reply("PONG %s" % arguments[0])
+                self.reply("PONG", ":%s" % args[1])
 
         def wallops():
             print("wallops")
@@ -174,57 +175,6 @@ class Client(object):
         "PART" : part,
         "NICK" : nick,
         "LIST" : list,
-=======
-
-
-    def join(self, arguments):
-        return
-    def part(self, arguments):
-        return
-
-def ping(self, arguments):
-    if len(arguments) == 0:
-        ERR_NOORIGIN()
-    else:
-        self.reply("PONG %s" % arguments[0])
-
-def ping(self, arguments):
-    if len(arguments) == 0:
-        ERR_NOORIGIN()
-    else:
-        self.reply("PONG %s" % arguments[0])
-
-    def listHandler(self, arguments):
-        return
-
-    def privmsg(self, arguments):
-        return
-
-    #def notice(self, arguments):
-
-
-
-    def pong(self, arguments):
-        pass
-
-    def wallops(self, arguments):
-        return
-
-    def who(self, arguments):
-        return
-
-    def topic(self, arguments):
-        return
-
-
-
-    def commandHandler(self, command, arguments):
-        commands = {
-        "JOIN" : join,
-        "PART" : part,
-        "NICK" : nick,
-        "LIST" : listHandler,
->>>>>>> c4818e472f95aa48cdfa1e31792a445ad38aed2e
         "PRIVMSG" : privmsg,
         "NOTICE" : privmsg,
         "PING" : ping,
@@ -233,18 +183,19 @@ def ping(self, arguments):
         "WHO" : who,
         "TOPIC" : topic,
         "QUIT" : quit
-        #default 421?
         }
 
         try:
-            command_handlers[command]()
+
+            command_handlers[command.upper()]()
         except KeyError:
             print("no handler for command/ reply number")
-            self.ERR_UNKNOWNCOMMAND()
+            self.ERR_UNKNOWNCOMMAND(command)
 
     def socket_readable(self):
         try:
             self.rec_buffer += self.socket.recv(1000).decode()
+            self.parse_buffer()
             #print(self.rec_buffer)
 
         except IOError as e:
@@ -264,38 +215,57 @@ def ping(self, arguments):
     def message(self, message):
         #self.writeBuffer += message + "\r\n"
         self.socket.send((message + "\r\n").encode())
-        print(message)
+        print(">>> " + message)
 
-    def reply(self, message):
-        self.message(":%s %s" % (self.server, message))
+    def reply(self, command, message):
+        self.message(":%s %s %s %s" % (socket.gethostbyname(socket.gethostname()), command, self.nick, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
-        self.reply("401 %s :No such nick/channel" % nickname)
+        self.reply("401", ":No such nick/channel" % nickname)
 
     def ERR_NOSUCHCHANNEL(self, channel):
-        self.reply("403 %s :No such channel" % channel)
+        self.reply("403", ":No such channel" % channel)
 
     def ERR_NOORIGIN(self):
-        self.reply("409 :No origin specified")
+        self.reply("409", ":No origin specified")
 
     def ERR_UNKNOWNCOMMAND(self, command):
-        self.reply("421 %s :Unknown command" % command)
+        self.reply("421", "%s :Unknown command" % command)
 
-    def ERR_NONICKNAMEGIVEN():
-        self.reply("431 :No nickname given")
+    def ERR_NONICKNAMEGIVEN(self):
+        self.reply("431", ":No nickname given")
 
-    def ERR_ERRONEUSNICKNAME(self, nickname):
-        self.reply("432 %s :Erroneus nickname" % nickname)
+    def ERR_ERRONEUSNICKNAME(self):
+        self.reply("432", ":Erroneus nickname")
 
-    def ERR_NICKNAMEINUSE(self, nickname):
-        self.reply("433 %s :Nickname is already in use" % nickname)
+    def ERR_NICKNAMEINUSE(self):
+        self.reply("433", ":Nickname is already in use")
 
-    def ERR_USERNOTINCHANNEL(self, nickname, channel):
-        self.reply("441 %s %s :They aren't on that channel" % (nickname, channel))
+    def ERR_USERNOTINCHANNEL(self, channel):
+        self.reply("441", "%s :They aren't on that channel" % (channel))
 
     def ERR_NEEDMOREPARAMS(self, command):
-        self.reply("461 %s :Not enough parameters" % command)
+        self.reply("461", "%s :Not enough parameters" % command)
+
+
+    def RPL_WELCOME(self):
+        self.reply("001", ":Welcome")
+
+    def RPL_YOURHOST(self):
+        self.reply("002", ":Your host is %s, running version ShitIRC V0.1" % socket.gethostbyname(socket.gethostname()))
+
+    def RPL_CREATED(self):
+        self.reply("003", ":the server was created sometime")
+
+    def RPL_MYINFO(self):
+        self.reply("004", "%s version 0 0" % socket.gethostbyname(socket.gethostname()))
+
+    def RPL_LUSERCLIENT(self):
+        self.reply("251", ":there are %d users" % len(self.server.clients))
+
+    def ERR_NOMOTD(self):
+        self.reply("422", ":no MOTD")
 
     #Command responses:
     #RPL_TOPIC, etc
@@ -314,79 +284,80 @@ class Server(object):
         self.line_regex = re.compile(r"\r?\n")
 
     def run(self):
-        ip = "127.0.0.1"
-        port = 6667
         # Create a socket, set up, and listening for new connections
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind((ip, port))
-        server_socket.listen()
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind((self.ip, self.port))
+        self.socket.listen()
 
         # List of sockets and clients
-        sockets_list = [server_socket]
-        clients = {}
 
-        print("Listening for connections on: " +ip+" Port: "+str(port)+"")
+
+        #print("Listening for connections on: " +ip+" Port: "+str(port)+"")
 
         while True:
+            sockets_list = [self.socket]
+
+            for client in self.clients.values():
+                sockets_list.append(client.socket)
+
             read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list) #waits for input
 
             # Iterate over notified sockets
             for notified_socket in read_sockets:
-
                 # If notified socket is a server socket - new connection, accept it
-                if notified_socket == server_socket:
+                if notified_socket == self.socket:
 
                     # Accept new connection
-                    client_socket, client_address = server_socket.accept()
+                    client_socket, client_address = self.socket.accept()
 
                     # Client should send his name right away, receive it
-                    user = receive_message(client_socket)
+                    #user = receive_message(client_socket)
 
                     # If False - client disconnected before he sent his name
-                    if user is False:
-                        continue
+                    #if user is False:
+                    #    continue
 
                     # Add accepted socket to select.select() list
-                    sockets_list.append(client_socket)
+                    #sockets_list.append(client_socket)
 
                     # Also save username and username header
-                    clients[client_socket] = user
+                    self.clients[client_socket] = Client(client_socket,self, client_address)
 
-                    print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['data'].decode('utf-8')))
+                    #print('Accepted new connection from {}:{}, username: {}'.format(*client_address))#, user['data'].decode('utf-8')))
 
                 # Else existing socket is sending a message
                 else:
 
                     # Receive message
-                    message = receive_message(notified_socket)
+                    self.clients[notified_socket].socket_readable()
+                    #message = receive_message(notified_socket)
 
                     # If False, client disconnected, cleanup
-                    if message is False:
-                        print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
-
-                        # Remove from list for socket.socket()
-                        sockets_list.remove(notified_socket)
-
-                        # Remove from our list of users
-                        del clients[notified_socket]
-
-                        continue
+                    # if message is False:
+                    #     print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
+                    #
+                    #     # Remove from list for socket.socket()
+                    #     sockets_list.remove(notified_socket)
+                    #
+                    #     # Remove from our list of users
+                    #     del clients[notified_socket]
+                    #
+                    #     continue
 
                     # Get user by notified socket, so we will know who sent the message
-                    user = clients[notified_socket]
+                    #user = clients[notified_socket]
 
-                    print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
+                    #print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
 
                     # Iterate over connected clients and broadcast message
-                    for client_socket in clients:
+                    #for client_socket in clients:
 
                         # But don't sent it to sender
-                        if client_socket != notified_socket:
+                        #if client_socket != notified_socket:
 
                             # Send user and message (both with their headers)
                             # We are reusing here message header sent by sender, and saved username header send by user when he connected
-                            client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+                            #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
 
     def receive_message(client_socket):
         try:
@@ -415,14 +386,14 @@ class Channel(object):
         #remove people
 
 
-client = Client("","")
-client.get_connection()
-while True:
-    client.socket_readable()
-    if(not client.buffer_empty()):
-        client.parse_buffer()
-
-def main():
+# client = Client("","")
+# client.get_connection()
+# while True:
+#     client.socket_readable()
+#     if(not client.buffer_empty()):
+#         client.parse_buffer()
+#
+# def main():
     server = Server()
     server.run()
 
