@@ -100,7 +100,7 @@ class IRCBot(object):
             return
 
         def pong_handler():
-            self.send_msg("PONG " + msg)
+            self.send_msg("PONG :" + msg)
 
         def privmsg_handler():
             msg_from = args[0].split("!")[0]

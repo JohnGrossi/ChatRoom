@@ -9,10 +9,11 @@ import argparse
 
 class Client(object):
     #set up all client variables etc
-    def __init__(self, socket, server, ip):
-        self.socket = socket
+    def __init__(self, client_socket, server):
+        self.socket = client_socket
         self.server = server
-        self.ip = ip
+        self.host, self.port = client_socket.getpeername()
+        self.hostname = socket.getfqdn(self.host)
         self.writeBuffer = ""
         self.rec_buffer = ""
         self.nick = ""
@@ -20,6 +21,8 @@ class Client(object):
         self.user = ""
         self.registered = False
         self.line_regex = re.compile(r"\r?\n")
+        self.last_recieve = time.time()
+        self.ping_sent = False
         #etc
 
     #for testing
@@ -81,8 +84,10 @@ class Client(object):
                 self.ERR_NEEDMOREPARAMS(args[0])
                 return
             if(args[1] in self.server.nicknames.keys()):
-                self.ERR_NICKNAMEINUSE(args[1])
+                self.ERR_NICKNAMEINUSE()
+                return
             self.nick = args[1]
+            self.server.nicknames[args[1]] = self
 
         if(self.nick != "" and self.user != ""):
             self.registered = True
@@ -134,13 +139,9 @@ class Client(object):
         def privmsg():
             print("privmsg")
 
-        #def notice():
-
-        def ping():
-            print("ping")
 
         def pong():
-            print("pong")
+            self.ping_sent = False
 
         #look at
         def ping():
@@ -195,6 +196,7 @@ class Client(object):
     def socket_readable(self):
         try:
             self.rec_buffer += self.socket.recv(1000).decode()
+            self.last_recieve = time.time()
             self.parse_buffer()
             #print(self.rec_buffer)
 
@@ -207,9 +209,17 @@ class Client(object):
                 print('Reading error: {}'.format(str(e)))
                 sys.exit()
 
+    def check_connected(self):
+        if (self.last_recieve + 30 < time.time()):
+            if (self.ping_sent and self.last_recieve + 60 < time.time()):
+                self.disconnect("no response to ping")
+            else:
+                self.message("PING :" + self.server.hostname)
+                self.ping_sent = True
+
 
     def disconnect(self, message):
-        self.reply("QUIT :%s" % message)
+        self.reply("QUIT" ":%s" % message)
         #remove client & close socket
 
     def message(self, message):
@@ -217,8 +227,10 @@ class Client(object):
         self.socket.send((message + "\r\n").encode())
         print(">>> " + message)
 
-    def reply(self, command, message):
-        self.message(":%s %s %s %s" % (socket.gethostbyname(socket.gethostname()), command, self.nick, message))
+    def reply(self, command, message, sender = ""):
+        if (sender == ""):
+            sender = self.server.hostname
+        self.message(":%s %s %s %s" % (sender, command, self.nick, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
@@ -253,13 +265,13 @@ class Client(object):
         self.reply("001", ":Welcome")
 
     def RPL_YOURHOST(self):
-        self.reply("002", ":Your host is %s, running version ShitIRC V0.1" % socket.gethostbyname(socket.gethostname()))
+        self.reply("002", ":Your host is %s, running version ShitIRC V0.1" % self.server.hostname)
 
     def RPL_CREATED(self):
         self.reply("003", ":the server was created sometime")
 
     def RPL_MYINFO(self):
-        self.reply("004", "%s version 0 0" % socket.gethostbyname(socket.gethostname()))
+        self.reply("004", "%s version 0 0" % self.server.hostname)
 
     def RPL_LUSERCLIENT(self):
         self.reply("251", ":there are %d users" % len(self.server.clients))
@@ -279,20 +291,27 @@ class Server(object):
         self.nicknames = {}
         self.port = 6667
         self.ip = "127.0.0.1"
+        self.hostname = socket.getfqdn(socket.gethostname())
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.rec_buffer = ""
         self.line_regex = re.compile(r"\r?\n")
 
-    def run(self):
-        # Create a socket, set up, and listening for new connections
+    def connect_socket(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((self.ip, self.port))
         self.socket.listen()
+
+    def run(self):
+        # Create a socket, set up, and listening for new connections
+        self.connect_socket()
+
 
         # List of sockets and clients
 
 
         #print("Listening for connections on: " +ip+" Port: "+str(port)+"")
+        runtime = time.time()
+        last_check = time.time()
 
         while True:
             sockets_list = [self.socket]
@@ -300,9 +319,10 @@ class Server(object):
             for client in self.clients.values():
                 sockets_list.append(client.socket)
 
-            read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list) #waits for input
+            #waits for input with 2 second timeout
+            read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list,2)
 
-            # Iterate over notified sockets
+                # Iterate over notified sockets
             for notified_socket in read_sockets:
                 # If notified socket is a server socket - new connection, accept it
                 if notified_socket == self.socket:
@@ -310,54 +330,22 @@ class Server(object):
                     # Accept new connection
                     client_socket, client_address = self.socket.accept()
 
-                    # Client should send his name right away, receive it
-                    #user = receive_message(client_socket)
+                    #
+                    self.clients[client_socket] = Client(client_socket,self)
 
-                    # If False - client disconnected before he sent his name
-                    #if user is False:
-                    #    continue
 
-                    # Add accepted socket to select.select() list
-                    #sockets_list.append(client_socket)
-
-                    # Also save username and username header
-                    self.clients[client_socket] = Client(client_socket,self, client_address)
-
-                    #print('Accepted new connection from {}:{}, username: {}'.format(*client_address))#, user['data'].decode('utf-8')))
-
-                # Else existing socket is sending a message
+                    # Else existing socket is sending a message
                 else:
 
-                    # Receive message
+                    # Tell client it has message to recieve
                     self.clients[notified_socket].socket_readable()
-                    #message = receive_message(notified_socket)
 
-                    # If False, client disconnected, cleanup
-                    # if message is False:
-                    #     print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
-                    #
-                    #     # Remove from list for socket.socket()
-                    #     sockets_list.remove(notified_socket)
-                    #
-                    #     # Remove from our list of users
-                    #     del clients[notified_socket]
-                    #
-                    #     continue
+            #tells each client object to ping its connected client every so often
+            if (last_check + 15 < time.time()):
+                for client in self.clients.values():
+                    client.check_connected()
+                last_check = time.time()
 
-                    # Get user by notified socket, so we will know who sent the message
-                    #user = clients[notified_socket]
-
-                    #print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
-
-                    # Iterate over connected clients and broadcast message
-                    #for client_socket in clients:
-
-                        # But don't sent it to sender
-                        #if client_socket != notified_socket:
-
-                            # Send user and message (both with their headers)
-                            # We are reusing here message header sent by sender, and saved username header send by user when he connected
-                            #client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
 
     def receive_message(client_socket):
         try:
@@ -393,7 +381,9 @@ class Channel(object):
 #     if(not client.buffer_empty()):
 #         client.parse_buffer()
 #
-# def main():
+
+
+def main():
     server = Server()
     server.run()
 
