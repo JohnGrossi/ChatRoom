@@ -25,7 +25,8 @@ class Client(object):
         self.last_recieve = time.time()
         self.ping_sent = False
         #etc
-
+    def sender(self):
+        return "%s!%s@%s" % (self.nick,self.user,self.hostname)
     #for testing
     def get_connection(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -117,13 +118,17 @@ class Client(object):
             if (args[1].find("#") == -1):
                 print("missing #")
             else:
-                channel = arg[1].strip("#")
+                channel = args[1].strip("#")
                 if (channel in self.channels.keys()):
                     self.server.channels[channel].members[self.nick] = self
+                    self.channels[channel] = self.server.channels[channel]
+                    for client in self.channels[channel].members.keys():
+                        self.server.clients[client].reply("JOIN", "", self.sender(), "#%s"%channel)
                 else:
                     self.server.channels[channel] = Channel(channel)
                     self.server.channels[channel].members[self.nick] = self
                     self.channels[channel] = self.server.channels[channel]
+                    self.reply("JOIN", "", self.sender(), "#%s"%channel)
         def part():
             print("part")
 
@@ -167,15 +172,14 @@ class Client(object):
                     channel = reciever.strip("#")
                     if (channel in self.channels.keys()):
                         for client in self.channels[channel].clients:
-                            sender = "%s!%s@%s" % (self.nick,self.user,self.hostname)
-                            client.reply("PRIVMSG",message,sender)
+
+                            client.reply("PRIVMSG",message,self.sender())
                     else:
                         self.ERR_NOSUCHNICK(channel)
                         return
                 else:
                     if (reciever in self.server.nicknames.keys()):
-                        sender = "%s!%s@%s" % (self.nick,self.user,self.hostname)
-                        self.server.nicknames[reciever].reply("PRIVMSG",message,sender)
+                        self.server.nicknames[reciever].reply("PRIVMSG",message,self.sender())
                     else:
                         self.ERR_NOSUCHNICK(reciever)
                         return
@@ -273,10 +277,12 @@ class Client(object):
         self.socket.send((message + "\r\n").encode())
         print(">>> " + message)
 
-    def reply(self, command, message, sender = ""):
+    def reply(self, command, message, sender = "", nick = ""):
         if (sender == ""):
             sender = self.server.hostname
-        self.message(":%s %s %s %s" % (sender, command, self.nick, message))
+        if (nick == ""):
+            sender = self.nick
+        self.message(":%s %s %s %s" % (sender, command, nick, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
