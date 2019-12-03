@@ -120,9 +120,10 @@ class Client(object):
                 channel = arg[1].strip("#")
                 if (channel in self.channels.keys()):
                     self.server.channels[channel].members[self.nick] = self
-
-            print("join")
-
+                else:
+                    self.server.channels[channel] = Channel(channel)
+                    self.server.channels[channel].members[self.nick] = self
+                    self.channels[channel] = self.server.channels[channel]
         def part():
             print("part")
 
