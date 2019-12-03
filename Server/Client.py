@@ -127,7 +127,7 @@ class IRCBot(object):
 
             else:
                 print(msg_from + ": " + msg)
-                self.send_msg("PRIVMSG " + msg_from + " :fuck off you stupid cunt")
+                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot")
 
         #print(command)
         command_handlers = {

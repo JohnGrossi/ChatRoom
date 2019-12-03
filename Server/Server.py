@@ -15,7 +15,7 @@ class Client(object):
         self.channels = {}
         self.host, self.port = client_socket.getpeername()
         self.hostname = socket.getfqdn(self.host)
-        self.writeBuffer = ""
+        self.write_buffer = ""
         self.rec_buffer = ""
         self.nick = ""
         self.name = ""
@@ -213,6 +213,12 @@ class Client(object):
             else:
                 self.reply("PONG", ":%s" % args[1])
 
+        def wallops():
+            print("wallops")
+
+        def who():
+            print("who")
+
         def topic():
             #print("topic")
             if len(args) < 2:
@@ -251,8 +257,11 @@ class Client(object):
         "NICK" : nick,
         "LIST" : list,
         "PRIVMSG" : privmsg,
+        "NOTICE" : privmsg,
         "PING" : ping,
         "PONG" : pong,
+        "WALLOPS" : wallops,
+        "WHO" : who,
         "TOPIC" : topic,
         "QUIT" : quit
         }
@@ -265,24 +274,23 @@ class Client(object):
             self.ERR_UNKNOWNCOMMAND(command)
 
     def socket_readable(self):
+        read_data = ""
         try:
-            self.rec_buffer += self.socket.recv(1000).decode()
+            read_data = self.socket.recv(1000)
+            self.rec_buffer += read_data.decode()
             self.last_recieve = time.time()
             self.parse_buffer()
             #print(self.rec_buffer)
+        except socket.error as e:
+            print(e)
 
-        except IOError as e:
-                # This is normal on non blocking connections - when there are no incoming data error is going to be raised
-                # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
-                # We are going to check for both - if one of them - that's expected, means no incoming data, continue as normal
-                # If we got different error code - something happened
-            if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
-                print('Reading error: {}'.format(str(e)))
-                sys.exit()
+        if not read_data:
+            self.disconnect("connection died")
+
 
     def check_connected(self):
-        if (self.last_recieve + 30 < time.time()):
-            if (self.ping_sent and self.last_recieve + 60 < time.time()):
+        if (self.last_recieve + 15 < time.time()):
+            if (self.ping_sent and self.last_recieve + 30 < time.time()):
                 self.disconnect("no response to ping")
             else:
                 self.message("PING :" + self.server.hostname)
@@ -290,13 +298,30 @@ class Client(object):
 
 
     def disconnect(self, message):
-        self.reply("QUIT" ":%s" % message)
+        print("dis")
+        self.reply("QUIT", ":%s" % message)
+        del self.server.clients[self.socket]
+        if (self.nick in self.server.nicknames):
+            del self.server.nicknames[self.nick]
+        for channel in self.channels.values():
+            del chanel.members[self.nick]
+        self.socket.close()
         #remove client & close socket
 
     def message(self, message):
-        #self.writeBuffer += message + "\r\n"
-        self.socket.send((message + "\r\n").encode())
+        self.write_buffer += (message + "\r\n")
         print(">>> " + message)
+
+    def socket_write(self):
+        try:
+            sent = self.socket.send((self.write_buffer).encode())
+            self.write_buffer = self.write_buffer[sent:]
+        except socket.error as e:
+            print("dis")
+            self.disconnect("socket error")
+
+
+
 
     def reply(self, command, message, sender = "", nick = "", channel = ""):
         if (sender == ""):
@@ -345,7 +370,7 @@ class Client(object):
         self.reply("001", ":Welcome")
 
     def RPL_YOURHOST(self):
-        self.reply("002", ":Your host is %s, running version ShitIRC V0.1" % self.server.hostname)
+        self.reply("002", ":Your host is %s, running version thisIRC V0.1" % self.server.hostname)
 
     def RPL_CREATED(self):
         self.reply("003", ":the server was created sometime")
@@ -402,7 +427,7 @@ class Server(object):
                 sockets_list.append(client.socket)
 
             #waits for input with 2 second timeout
-            read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list,2)
+            read_sockets, write_sockets, exception_sockets = select.select(sockets_list, sockets_list, sockets_list,2)
 
                 # Iterate over notified sockets
             for notified_socket in read_sockets:
@@ -422,28 +447,17 @@ class Server(object):
                     # Tell client it has message to recieve
                     self.clients[notified_socket].socket_readable()
 
+            for notified_socket in write_sockets:
+                if notified_socket in self.clients.keys():
+                    self.clients[notified_socket].socket_write()
+
+
             #tells each client object to ping its connected client every so often
-            if (last_check + 15 < time.time()):
+            if (last_check + 10 < time.time()):
                 for client in self.clients.values():
                     client.check_connected()
                 last_check = time.time()
 
-
-    def receive_message(client_socket):
-        try:
-            message_header = client_socket.recv(1000)
-
-            if message_header == 0:
-                return False
-
-            # Convert header to int value
-            message_length = int(message_header.decode('utf-8').strip())
-
-            # Return an object of message header and message data
-            return {'header': message_header, 'data': client_socket.recv(message_length)}
-
-        except:
-            return False
 
 
 
