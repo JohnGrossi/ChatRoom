@@ -12,6 +12,7 @@ class Client(object):
     def __init__(self, client_socket, server):
         self.socket = client_socket
         self.server = server
+        self.channels = {}
         self.host, self.port = client_socket.getpeername()
         self.hostname = socket.getfqdn(self.host)
         self.writeBuffer = ""
@@ -20,7 +21,7 @@ class Client(object):
         self.name = ""
         self.user = ""
         self.registered = False
-        self.line_regex = re.compile(r"\r?\n")
+        self.line_regex = re.compile(r"\r\n")
         self.last_recieve = time.time()
         self.ping_sent = False
         #etc
@@ -143,6 +144,40 @@ class Client(object):
 
         def privmsg():
             print("privmsg")
+            if (len(args) < 3):
+                self.ERR_NEEDMOREPARAMS("PRIVMSG")
+                return
+
+            recievers = []
+            message = args[-1]
+            #checks for more than 1 reciever
+            if (args[1].find(",") != -1):
+                recievers = args[1].split(",")
+            else:
+                recievers = [args[1]]
+
+            for reciever in recievers:
+                if (reviever.find("#") != -1):
+                    channel = reciever.strip("#")
+                    if (channel in self.channels.keys()):
+                        for client in self.channels[channel].clients:
+                            sender = "%s!%s@%s" % (self.nick,self.user,self.hostname)
+                            client.reply("PRIVMSG",message,sender)
+                    else:
+                        self.ERR_NOSUCHNICK(channel)
+                        return
+                else:
+                    if (reciever in self.server.nicknames.keys()):
+                        sender = "%s!%s@%s" % (self.nick,self.user,self.hostname)
+                        self.server.nicknames[reciever].reply("PRIVMSG",message,sender)
+                    else:
+                        self.ERR_NOSUCHNICK(reciever)
+                        return
+
+
+
+
+
 
 
         def pong():
@@ -239,7 +274,7 @@ class Client(object):
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
-        self.reply("401", ":No such nick/channel" % nickname)
+        self.reply("401", "%s :No such nick/channel" % nickname)
 
     def ERR_NOSUCHCHANNEL(self, channel):
         self.reply("403", ":No such channel" % channel)
