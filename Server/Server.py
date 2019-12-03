@@ -119,18 +119,29 @@ class Client(object):
                 print("missing #")
             else:
                 channel = args[1].strip("#")
-                if (channel in self.channels.keys()):
+                if (channel in self.server.channels.keys()):
                     print("old")
                     self.server.channels[channel].members[self.nick] = self
                     self.channels[channel] = self.server.channels[channel]
-                    for client in self.channels[channel].members:
+                    for client in self.channels[channel].members.values():
                         client.reply("JOIN", "", self.sender(), "#%s"%channel)
                 else:
                     print("new")
                     self.server.channels[channel] = Channel(channel)
                     self.server.channels[channel].members[self.nick] = self
                     self.channels[channel] = self.server.channels[channel]
+                    print(self.channels)
                     self.reply("JOIN", "", self.sender(), "#%s"%channel)
+
+                self.reply("332",":this is a channel topic", channel = "#%s" % channel)
+
+                members = ""
+                for client in self.channels[channel].members.values():
+                    members += " %s" % client.nick
+                self.reply("353","= #%s :@%s" % (channel, members))
+                self.reply("366",":End of NAMES list", channel = "#%s" % channel)
+
+
         def part():
             print("part")
 
@@ -170,7 +181,7 @@ class Client(object):
                 recievers = [args[1]]
 
             for reciever in recievers:
-                if (reviever.find("#") != -1):
+                if (reciever.find("#") != -1):
                     channel = reciever.strip("#")
                     if (channel in self.channels.keys()):
                         for client in self.channels[channel].clients:
@@ -279,12 +290,12 @@ class Client(object):
         self.socket.send((message + "\r\n").encode())
         print(">>> " + message)
 
-    def reply(self, command, message, sender = "", nick = ""):
+    def reply(self, command, message, sender = "", nick = "", channel = ""):
         if (sender == ""):
             sender = self.server.hostname
         if (nick == ""):
-            sender = self.nick
-        self.message(":%s %s %s %s" % (sender, command, nick, message))
+            nick = self.nick
+        self.message(":%s %s %s %s %s" % (sender, command, nick, channel, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
