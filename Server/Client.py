@@ -112,12 +112,13 @@ class IRCBot(object):
                     def bot_time():
                         self.send_msg("PRIVMSG " + args[2] + " :" + str(datetime.time(datetime.now())))
 
-                    def bot_date():
-                        self.send_msg("PRIVMSG " + args[2] + " :" + str(datetime.date(datetime.now())))
+                    def bot_day():
+                        day = datetime.datetime.now()
+                        self.send_msg("PRIVMSG " + args[2] + " :" + day.strftime("%A"))
 
                     bot_commands = {
                         "!time": bot_time,
-                        "!date": bot_date
+                        "!day": bot_day
                     }
 
                     try:
