@@ -80,7 +80,7 @@ class Client(object):
                 return
 
             self.name = args[-1]
-            self.user = [1]
+            self.user = args[1]
         if(args[0] == "NICK"):
             if(len(args) < 2):
                 self.ERR_NEEDMOREPARAMS(args[0])
@@ -120,11 +120,13 @@ class Client(object):
             else:
                 channel = args[1].strip("#")
                 if (channel in self.channels.keys()):
+                    print("old")
                     self.server.channels[channel].members[self.nick] = self
                     self.channels[channel] = self.server.channels[channel]
-                    for client in self.channels[channel].members.keys():
-                        self.server.clients[client].reply("JOIN", "", self.sender(), "#%s"%channel)
+                    for client in self.channels[channel].members:
+                        client.reply("JOIN", "", self.sender(), "#%s"%channel)
                 else:
+                    print("new")
                     self.server.channels[channel] = Channel(channel)
                     self.server.channels[channel].members[self.nick] = self
                     self.channels[channel] = self.server.channels[channel]
