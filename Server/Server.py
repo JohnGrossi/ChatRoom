@@ -173,7 +173,7 @@ class Client(object):
                 return
 
             recievers = []
-            message = args[-1]
+            message = ":%s" % args[-1]
             #checks for more than 1 reciever
             if (args[1].find(",") != -1):
                 recievers = args[1].split(",")
@@ -184,9 +184,9 @@ class Client(object):
                 if (reciever.find("#") != -1):
                     channel = reciever.strip("#")
                     if (channel in self.channels.keys()):
-                        for client in self.channels[channel].clients:
+                        for client in self.channels[channel].members.values():
 
-                            client.reply("PRIVMSG",message,self.sender())
+                            client.reply("PRIVMSG",message,self.sender(), channel = "#%s" % channel)
                     else:
                         self.ERR_NOSUCHNICK(channel)
                         return
@@ -301,9 +301,13 @@ class Client(object):
     def reply(self, command, message, sender = "", nick = "", channel = ""):
         if (sender == ""):
             sender = self.server.hostname
-        if (nick == ""):
-            nick = self.nick
-        self.message(":%s %s %s %s %s" % (sender, command, nick, channel, message))
+        if (nick == "" and channel == ""):
+            nick_channel = self.nick
+        elif (nick == "" or channel == ""):
+            nick_channel = "%s%s" % (nick, channel)
+        else:
+            nick_channel = "%s %s" % (nick, channel)
+        self.message(":%s %s %s %s" % (sender, command, nick_channel, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
