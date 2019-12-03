@@ -111,10 +111,15 @@ class Client(object):
 
         #def all commands, ie join, privmsg etc
         def join(self,args):
-            if len(args) < 2:
+            if len(args) < 2 :
                 print("no channel name given")
                 return
-            if self.server.channels != args[2]
+            if (args[1].find("#") == -1):
+                print("missing #")
+            else:
+                channel = arg[1].strip("#")
+                if (channel in self.channels.keys()):
+                    self.server.channels[channel].members[self.nick] = self
 
             print("join")
 
