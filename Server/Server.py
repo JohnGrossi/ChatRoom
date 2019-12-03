@@ -213,12 +213,6 @@ class Client(object):
             else:
                 self.reply("PONG", ":%s" % args[1])
 
-        def wallops():
-            print("wallops")
-
-        def who():
-            print("who")
-
         def topic():
             #print("topic")
             if len(args) < 2:
@@ -257,11 +251,8 @@ class Client(object):
         "NICK" : nick,
         "LIST" : list,
         "PRIVMSG" : privmsg,
-        "NOTICE" : privmsg,
         "PING" : ping,
         "PONG" : pong,
-        "WALLOPS" : wallops,
-        "WHO" : who,
         "TOPIC" : topic,
         "QUIT" : quit
         }
