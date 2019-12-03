@@ -215,7 +215,7 @@ class Client(object):
                 return
             channel_name = args[1];
             if channel_name not in self.channels.keys():
-                self.ERR_NOTONCHANNEL()
+                self.ERR_NOTONCHANNEL(channel_name)
                 return
             channel = self.channels.get(channel_name)
             if len(args) == 2:
@@ -328,8 +328,8 @@ class Client(object):
     def ERR_USERNOTINCHANNEL(self, channel):
         self.reply("441", "%s :They aren't on that channel" % (channel))
 
-    def ERR_NOTONCHANNEL(self):
-        self.reply("442", ":You're not on that channel")
+    def ERR_NOTONCHANNEL(self, channel_name):
+        self.reply("442", "%s :You're not on that channel" % channel_name)
 
     def ERR_NEEDMOREPARAMS(self, command):
         self.reply("461", "%s :Not enough parameters" % command)
