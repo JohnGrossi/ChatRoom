@@ -113,7 +113,8 @@ class Client(object):
         #def all commands, ie join, privmsg etc
         def join():
             if len(args) < 2 :
-                print("no channel name given")
+                #print("no channel name given")
+                ERR_NEEDMOREPARAMS("JOIN")
                 return
             if (args[1].find("#") == -1):
                 print("missing #")
@@ -134,6 +135,7 @@ class Client(object):
                     self.reply("JOIN", "", self.sender(), "#%s"%channel)
 
                 self.reply("332",":this is a channel topic", channel = "#%s" % channel)
+                #RPL_TOPIC(channel)
 
                 members = ""
                 for client in self.channels[channel].members.values():
@@ -143,7 +145,21 @@ class Client(object):
 
 
         def part():
-            print("part")
+            #print("part")
+            if len(args) < 2 :
+                ERR_NEEDMOREPARAMS("PART")
+                return
+            channel_names = args[1:]
+            for name in channel_names:
+                name = name.strip("#")
+                if name in self.channels.keys():
+                    del self.channels[name] #remove channel from client's dictionary
+                    del self.server.channels[name].members[self.nick] #remove client from dictionary of channel members
+                else:
+                    if name in self.server.channels.keys():
+                        ERR_NOTONCHANNEL(name)
+                    else:
+                        ERR_NOSUCHCHANNEL(name)
 
             #look at
         def nick():
@@ -173,7 +189,7 @@ class Client(object):
                 return
 
             recievers = []
-            message = ":%s" % args[-1]
+            message = args[-1]
             #checks for more than 1 reciever
             if (args[1].find(",") != -1):
                 recievers = args[1].split(",")
@@ -184,9 +200,9 @@ class Client(object):
                 if (reciever.find("#") != -1):
                     channel = reciever.strip("#")
                     if (channel in self.channels.keys()):
-                        for client in self.channels[channel].members.values():
+                        for client in self.channels[channel].clients:
 
-                            client.reply("PRIVMSG",message,self.sender(), channel = "#%s" % channel)
+                            client.reply("PRIVMSG",message,self.sender())
                     else:
                         self.ERR_NOSUCHNICK(channel)
                         return
@@ -196,12 +212,6 @@ class Client(object):
                     else:
                         self.ERR_NOSUCHNICK(reciever)
                         return
-
-
-
-
-
-
 
         def pong():
             self.ping_sent = False
@@ -233,11 +243,9 @@ class Client(object):
                 new_topic = args[2]
                 channel._topic = new_topic
 
-        def quit():
-            print("quit")
-
             #need to edit
         def quit(self, arguments):
+            #print("quit")
             if len(arguments) == 0:
                 quitMsg = self.nickname
             else:
@@ -245,8 +253,8 @@ class Client(object):
             self.disconnect(quitMsg)
 
 
-        command_handlers = {    #switch on commands
-        "JOIN" : join, #calls join handler
+        command_handlers = {
+        "JOIN" : join,
         "PART" : part,
         "NICK" : nick,
         "LIST" : list,
@@ -258,7 +266,6 @@ class Client(object):
         }
 
         try:
-
             command_handlers[command.upper()]()
         except KeyError:
             print("no handler for command/ reply number")
@@ -301,13 +308,9 @@ class Client(object):
     def reply(self, command, message, sender = "", nick = "", channel = ""):
         if (sender == ""):
             sender = self.server.hostname
-        if (nick == "" and channel == ""):
-            nick_channel = self.nick
-        elif (nick == "" or channel == ""):
-            nick_channel = "%s%s" % (nick, channel)
-        else:
-            nick_channel = "%s %s" % (nick, channel)
-        self.message(":%s %s %s %s" % (sender, command, nick_channel, message))
+        if (nick == ""):
+            nick = self.nick
+        self.message(":%s %s %s %s %s" % (sender, command, nick, channel, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
