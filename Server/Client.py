@@ -128,7 +128,7 @@ class IRCBot(object):
 
             else:
                 print(msg_from + ": " + msg)
-                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot")
+                self.send_msg("PRIVMSG " + msg_from + " :this is a :test")
 
         #print(command)
         command_handlers = {
@@ -139,7 +139,8 @@ class IRCBot(object):
         try:
             command_handlers[command]()
         except KeyError:
-            print("no handler for command/ reply number")
+            #print("no handler for command/ reply number")
+            return
 
 
     def run(self):

@@ -27,17 +27,6 @@ class Client(object):
         #etc
     def sender(self):
         return "%s!%s@%s" % (self.nick,self.user,self.hostname)
-    #for testing
-    def get_connection(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(("127.0.0.1",6667))
-        while True:
-            # Wait for a connection
-            print('waiting for a connection')
-            self.socket.listen()
-            connection, client_address = self.socket.accept()
-            self.socket = connection
-            break
 
     def buffer_empty(self):
         if(self.rec_buffer == ""):
@@ -60,13 +49,16 @@ class Client(object):
 
             if (line.find(":") != -1):
                 line_split = line.strip(":").split(":")
+                while len(line_split) > 2:
+                    line_split[-2] += ":" + line_split[-1]
+                    line_split = line_split[:-1]
                 command_args = line_split[0].strip(" ").split(" ")
+
                 if (len(line_split) > 1):
                     command_args = command_args + [line_split[-1]]
             else:
                 command_args = line.strip(" ").split(" ")
 
-            #print(str(command_args) + " > " + msg)
             if(self.registered):
                 self.handle_command(command_args)
             else:
@@ -106,9 +98,7 @@ class Client(object):
 
 
     def handle_command(self, args):
-        #print(args)
         command = args[0]
-        #print(command + " > " + str(args))
 
         #def all commands, ie join, privmsg etc
         def join():
@@ -116,36 +106,31 @@ class Client(object):
                 #print("no channel name given")
                 ERR_NEEDMOREPARAMS("JOIN")
                 return
-            if (args[1].find("#") == -1):
-                print("missing #")
-            else:
+            if (args[1].find("#") != -1):
                 channel = args[1].strip("#")
-                if (channel in self.server.channels.keys()):
-                    print("old")
-                    self.server.channels[channel].members[self.nick] = self
-                    self.channels[channel] = self.server.channels[channel]
-                    for client in self.channels[channel].members.values():
-                        client.reply("JOIN", "", self.sender(), "#%s"%channel)
-                else:
-                    print("new")
-                    self.server.channels[channel] = Channel(channel)
-                    self.server.channels[channel].members[self.nick] = self
-                    self.channels[channel] = self.server.channels[channel]
-                    print(self.channels)
-                    self.reply("JOIN", "", self.sender(), "#%s"%channel)
+            if (channel in self.server.channels.keys()):
+                self.server.channels[channel].members[self.nick] = self
+                self.channels[channel] = self.server.channels[channel]
+                for client in self.channels[channel].members.values():
+                    client.reply("JOIN", "", self.sender(), "#%s"%channel)
+            else:
+                self.server.channels[channel] = Channel(channel)
+                self.server.channels[channel].members[self.nick] = self
+                self.channels[channel] = self.server.channels[channel]
 
-                self.reply("332",":this is a channel topic", channel = "#%s" % channel)
+                self.reply("JOIN", "", self.sender(), channel = channel)
+
+                self.reply("332",":this is a channel topic", channel =  channel)
                 #RPL_TOPIC(channel)
 
                 members = ""
                 for client in self.channels[channel].members.values():
                     members += " %s" % client.nick
                 self.reply("353","= #%s :@%s" % (channel, members))
-                self.reply("366",":End of NAMES list", channel = "#%s" % channel)
+                self.reply("366",":End of NAMES list", channel = channel)
 
 
         def part():
-            #print("part")
             if len(args) < 2 :
                 ERR_NEEDMOREPARAMS("PART")
                 return
@@ -179,11 +164,7 @@ class Client(object):
             else:
                 self.ERR_NICKNAMEINUSE()
 
-        def list():
-            print("list")
-
         def privmsg():
-            print("privmsg")
             if (len(args) < 3):
                 self.ERR_NEEDMOREPARAMS("PRIVMSG")
                 return
@@ -202,13 +183,13 @@ class Client(object):
                     if (channel in self.channels.keys()):
                         for client in self.channels[channel].clients:
 
-                            client.reply("PRIVMSG",message,self.sender())
+                            client.reply("PRIVMSG",":%s"%message,self.sender())
                     else:
                         self.ERR_NOSUCHNICK(channel)
                         return
                 else:
                     if (reciever in self.server.nicknames.keys()):
-                        self.server.nicknames[reciever].reply("PRIVMSG",message,self.sender())
+                        self.server.nicknames[reciever].reply("PRIVMSG",":%s"%message,self.sender())
                     else:
                         self.ERR_NOSUCHNICK(reciever)
                         return
@@ -216,18 +197,11 @@ class Client(object):
         def pong():
             self.ping_sent = False
 
-        #look at
         def ping():
             if len(args) < 2:
                 ERR_NOORIGIN()
             else:
                 self.reply("PONG", ":%s" % args[1])
-
-        def wallops():
-            print("wallops")
-
-        def who():
-            print("who")
 
         def topic():
             #print("topic")
@@ -265,7 +239,6 @@ class Client(object):
         "NICK" : nick,
         "LIST" : list,
         "PRIVMSG" : privmsg,
-        "NOTICE" : privmsg,
         "PING" : ping,
         "PONG" : pong,
         "WALLOPS" : wallops,
@@ -289,7 +262,7 @@ class Client(object):
             self.parse_buffer()
             #print(self.rec_buffer)
         except socket.error as e:
-            print(e)
+            read_data = ""
 
         if not read_data:
             self.disconnect("connection died")
@@ -311,7 +284,7 @@ class Client(object):
         if (self.nick in self.server.nicknames):
             del self.server.nicknames[self.nick]
         for channel in self.channels.values():
-            del chanel.members[self.nick]
+            del channel.members[self.nick]
         self.socket.close()
         #remove client & close socket
 
@@ -324,18 +297,23 @@ class Client(object):
             sent = self.socket.send((self.write_buffer).encode())
             self.write_buffer = self.write_buffer[sent:]
         except socket.error as e:
-            print("dis")
             self.disconnect("socket error")
 
 
 
 
-    def reply(self, command, message, sender = "", nick = "", channel = ""):
+    def reply(self, command, message = "", sender = "", nick = "", channel = ""):
         if (sender == ""):
             sender = self.server.hostname
-        if (nick == ""):
-            nick = self.nick
-        self.message(":%s %s %s %s %s" % (sender, command, nick, channel, message))
+        if (channel != "" and channel.find("#") == -1):
+            channel = "#%s" % channel
+        if (nick == "" and channel == ""):
+            nick_channel = self.nick
+        elif(nick == "" and channel == ""):
+            nick_channel = "%s%s" % (nick, channel)
+        else:
+            nick_channel = "%s %s" % (nick, channel)
+        self.message(":%s %s %s %s" % (sender, command, nick_channel, message))
 
     #Error Replies:
     def ERR_NOSUCHNICK(self, nickname):
