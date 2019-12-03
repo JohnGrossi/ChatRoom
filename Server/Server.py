@@ -109,7 +109,12 @@ class Client(object):
         #print(command + " > " + str(args))
 
         #def all commands, ie join, privmsg etc
-        def join():
+        def join(self,args):
+            if len(args) < 2:
+                print("no channel name given")
+                return
+            if self.server.channels != args[2]
+
             print("join")
 
         def part():
