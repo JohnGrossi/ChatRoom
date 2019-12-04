@@ -12,26 +12,28 @@ import argparse
 class IRCBot(object):
 
     #set up all bot variables
-    def __init__(self, ip = "127.0.0.1", user = "Bot", name = "Bot", nick = "Bot", channel = ""):
+    def __init__(self, ip = "127.0.0.1", user = "Bot", name = "Bot", nick_list = ["Bot","Bot_","Bot__"], channel = ""):
         self.ip = ip
         self.port = 6667
-        self.nickname = nick
+        self.nickname = nick_list
+        self.nickname_count = 0
         self.name = name
         self.user = user
         self.channel = channel
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.rec_buffer = ""
         self.line_regex = re.compile(r"\r?\n")
-        self.test = True
 
     #connect to server socket
     def connect(self):
         self.socket.connect((self.ip, self.port))
         self.socket.setblocking(False)
         self.send_msg("USER " + self.user + " " + self.user + " " + self.user + " :" + self.name)
-        self.send_msg("NICK " + self.nickname)
+        self.send_msg("NICK " + self.nickname[0])
         if (self.channel != ""):
-            self.send_msg("JOIN #" + self.channel)
+            if (self.channel.find("#") != 0):
+                self.channel = "#%s" % self.channel
+            self.send_msg("JOIN " + self.channel)
 
     #send message
     def send_msg(self, msg):
@@ -127,10 +129,16 @@ class IRCBot(object):
                 print(msg_from + ": " + msg)
                 self.send_msg("PRIVMSG " + msg_from + " :this is a :test")
 
+        def nick_in_use():
+            if (len(self.nickname) > self.nickname_count + 1):
+                self.nickname_count += 1
+                self.send_msg("NICK " + self.nickname[self.nickname_count])
+
         #switch case to call relevant command
         command_handlers = {
             "PING": pong_handler,
-            "PRIVMSG": privmsg_handler
+            "PRIVMSG": privmsg_handler,
+            "433": nick_in_use
         }
 
         try:
@@ -150,10 +158,10 @@ class IRCBot(object):
 def main():
     parser = argparse.ArgumentParser(description = "A bot for the irc protocol")
     parser.add_argument('--server', help="server to connect to (default = '127.0.0.1')", default = "127.0.0.1")
-    parser.add_argument('--nick', help="nickname to use on the server (default = 'Bot')", default = "Bot")
-    parser.add_argument('--user', help="username to use on the server (default = 'Bot')", default = "Bot")
-    parser.add_argument('--name', help="real name to use on the server (default = 'Bot')", default = "Bot")
-    parser.add_argument('--channel', help="channel to connect to on the server (none by default)", default = "")
+    parser.add_argument('--nick', help="nicknames to use on the server, for multiple seperate with \",\" and no spaces (default = 'ProBot,ProBot_,ProBot__')", default = "ProBot,ProBot_,ProBot__")
+    parser.add_argument('--user', help="username to use on the server (default = 'ProBot')", default = "ProBot")
+    parser.add_argument('--name', help="real name to use on the server (default = 'ProBot')", default = "ProBot")
+    parser.add_argument('--channel', help="channel to connect to on the server (default = #test)", default = "#test")
 
     print("\n ___ ___  ___ ___      _ ")
     print("|_ _| _ \\/ __| _ ) ___| |_ ")
@@ -162,7 +170,13 @@ def main():
 
     args = parser.parse_args()
 
-    bot = IRCBot(ip = args.server, user = args.user, name = args.name, nick = args.nick, channel = args.channel)
+
+    if (args.nick.find(",") != -1):
+        nick_list = args.nick.split(",")
+    else:
+        nick_list = [args.nick]
+
+    bot = IRCBot(ip = args.server, user = args.user, name = args.name, nick_list = nick_list, channel = args.channel)
     bot.run()
 
 #runs main method

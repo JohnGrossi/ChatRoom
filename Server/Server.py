@@ -245,8 +245,6 @@ class Client(object):
         "PRIVMSG" : privmsg,
         "PING" : ping,
         "PONG" : pong,
-        "WALLOPS" : wallops,
-        "WHO" : who,
         "TOPIC" : topic,
         "QUIT" : quit
         }
