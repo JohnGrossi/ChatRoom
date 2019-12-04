@@ -28,8 +28,13 @@ class IRCBot(object):
     def connect(self):
         self.socket.connect((self.ip, self.port))
         self.socket.setblocking(False)
+        self.register()
+
+    def register(self):
         self.send_msg("USER " + self.user + " " + self.user + " " + self.user + " :" + self.name)
-        self.send_msg("NICK " + self.nickname[0])
+        if (len(self.nickname) > self.nickname_count):
+            self.send_msg("NICK " + self.nickname[self.nickname_count])
+            self.nickname_count += 1
         if (self.channel != ""):
             if (self.channel.find("#") != 0):
                 self.channel = "#%s" % self.channel
@@ -112,7 +117,7 @@ class IRCBot(object):
                         self.send_msg("PRIVMSG " + args[2] + " :" + str(datetime.time(datetime.now())))
 
                     def bot_day():
-                        day = datetime.datetime.now()
+                        day = datetime.now()
                         self.send_msg("PRIVMSG " + args[2] + " :" + day.strftime("%A"))
 
                     bot_commands = {
@@ -127,12 +132,10 @@ class IRCBot(object):
 
             else:
                 print(msg_from + ": " + msg)
-                self.send_msg("PRIVMSG " + msg_from + " :this is a :test")
+                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot")
 
         def nick_in_use():
-            if (len(self.nickname) > self.nickname_count + 1):
-                self.nickname_count += 1
-                self.send_msg("NICK " + self.nickname[self.nickname_count])
+            self.register()
 
         #switch case to call relevant command
         command_handlers = {

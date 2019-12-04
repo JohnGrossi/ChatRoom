@@ -107,29 +107,29 @@ class Client(object):
         #method to join channel
         def join():
             if len(args) < 2 :
-                ERR_NEEDMOREPARAMS("JOIN")
+                self.ERR_NEEDMOREPARAMS("JOIN")
                 return
             if (args[1].find("#") != -1):
                 channel = args[1].strip("#")
             if (channel in self.server.channels.keys()):
                 self.server.channels[channel].members[self.nick] = self
                 self.channels[channel] = self.server.channels[channel]
-                for client in self.channels[channel].members.values():
-                    client.reply("JOIN", "", self.sender(), "#%s"%channel)
+
             else:
                 self.server.channels[channel] = Channel(channel)
                 self.server.channels[channel].members[self.nick] = self
                 self.channels[channel] = self.server.channels[channel]
 
-                self.reply("JOIN", "", self.sender(), channel = channel)
+            for client in self.channels[channel].members.values():
+                client.reply("JOIN", "", self.sender(), "#%s"%channel)
 
-                self.reply("332",":this is a channel topic", channel =  channel)
+            self.reply("332",":this is a channel topic", channel =  channel)
 
-                members = ""
-                for client in self.channels[channel].members.values():
-                    members += " %s" % client.nick
-                self.reply("353","= #%s :@%s" % (channel, members))
-                self.reply("366",":End of NAMES list", channel = channel)
+            members = ""
+            for client in self.channels[channel].members.values():
+                members += " %s" % client.nick
+            self.reply("353","= #%s :@%s" % (channel, members))
+            self.reply("366",":End of NAMES list", channel = channel)
 
         #method to leave channel
         def part():
@@ -184,9 +184,9 @@ class Client(object):
                 if (reciever.find("#") != -1):
                     channel = reciever.strip("#")
                     if (channel in self.channels.keys()):
-                        for client in self.channels[channel].clients:
-
-                            client.reply("PRIVMSG",":%s"%message,self.sender())
+                        for client in self.channels[channel].members.values():
+                            if(client != self):
+                                client.reply("PRIVMSG",":%s"%message,self.sender(),channel = channel)
                     else:
                         self.ERR_NOSUCHNICK(channel)
                         return
@@ -271,8 +271,8 @@ class Client(object):
 
     #checks if other side is still there, using ping and pong
     def check_connected(self):
-        if (self.last_recieve + 15 < time.time()):
-            if (self.ping_sent and self.last_recieve + 30 < time.time()):
+        if (self.last_recieve + 45 < time.time()):
+            if (self.ping_sent and self.last_recieve + 60 < time.time()):
                 self.disconnect("no response to ping")
             else:
                 self.message("PING :" + self.server.hostname)
@@ -310,7 +310,7 @@ class Client(object):
             channel = "#%s" % channel
         if (nick == "" and channel == ""):
             nick_channel = self.nick
-        elif(nick == "" and channel == ""):
+        elif(nick == "" or channel == ""):
             nick_channel = "%s%s" % (nick, channel)
         else:
             nick_channel = "%s %s" % (nick, channel)
