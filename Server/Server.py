@@ -25,10 +25,11 @@ class Client(object):
         self.last_recieve = time.time()
         self.ping_sent = False
 
+    #returns the sender details for this client
     def sender(self):
         return "%s!%s@%s" % (self.nick,self.user,self.hostname)
 
-    #empties buffer
+    #checks if the buffer is empty
     def buffer_empty(self):
         if(self.rec_buffer == ""):
             return True
@@ -90,7 +91,7 @@ class Client(object):
 
             self.send_reg_replies() #need to implement
 
-    #welcome messages when first connected
+    #welcome messages when first connected and registration is complete
     def send_reg_replies(self):
         self.RPL_WELCOME()
         self.RPL_YOURHOST()
@@ -279,9 +280,8 @@ class Client(object):
                 self.message("PING :" + self.server.hostname)
                 self.ping_sent = True
 
-    #if no response from ping, disconnect
+    #called when the client disconnecs, eg. if no response from ping
     def disconnect(self, message):
-        print("dis")
         self.reply("QUIT", ":%s" % message)
         del self.server.clients[self.socket]
         if (self.nick in self.server.nicknames):
