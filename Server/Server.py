@@ -119,6 +119,8 @@ class Client(object):
                 self.server.channels[channel] = Channel(channel)
                 self.server.channels[channel].members[self.nick] = self
                 self.channels[channel] = self.server.channels[channel]
+            print(self.channels.keys())
+            print(self.channels.values)
 
             for client in self.channels[channel].members.values():
                 client.reply("JOIN", "", self.sender(), "#%s"%channel)
@@ -136,17 +138,20 @@ class Client(object):
             if len(args) < 2 :
                 ERR_NEEDMOREPARAMS("PART")
                 return
-            channel_names = args[1:]
+            channel_names = args[1:-1]
+            print(args)
             for name in channel_names:
                 name = name.strip("#")
+                print(name)
+                print(self.channels.keys())
                 if name in self.channels.keys():
                     del self.channels[name] #remove channel from client's dictionary
                     del self.server.channels[name].members[self.nick] #remove client from dictionary of channel members
                 else:
                     if name in self.server.channels.keys():
-                        ERR_NOTONCHANNEL(name)
+                        self.ERR_NOTONCHANNEL(name)
                     else:
-                        ERR_NOSUCHCHANNEL(name)
+                        self.ERR_NOSUCHCHANNEL(name)
 
         #method to set nickname
         def nick():

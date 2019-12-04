@@ -114,7 +114,7 @@ class IRCBot(object):
                 if (re.match("!", msg)):
 
                     def bot_time():
-                        self.send_msg("PRIVMSG " + args[2] + " :" + str(datetime.time(datetime.now())))
+                        self.send_msg("PRIVMSG " + args[2] + " :" + datetime.now().strftime("%H:%M:%S"))
 
                     def bot_day():
                         day = datetime.now()
@@ -132,7 +132,7 @@ class IRCBot(object):
 
             else:
                 print(msg_from + ": " + msg)
-                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot")
+                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot, ludovic go suck a shitty dick")
 
         def nick_in_use():
             self.register()
