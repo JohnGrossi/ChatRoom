@@ -8,7 +8,7 @@ import time
 import argparse
 
 class Client(object):
-    #set up all client variables etc
+    #set up all client variables
     def __init__(self, client_socket, server):
         self.socket = client_socket
         self.server = server
@@ -24,14 +24,16 @@ class Client(object):
         self.line_regex = re.compile(r"\r\n")
         self.last_recieve = time.time()
         self.ping_sent = False
-        #etc
+
     def sender(self):
         return "%s!%s@%s" % (self.nick,self.user,self.hostname)
 
+    #empties buffer
     def buffer_empty(self):
         if(self.rec_buffer == ""):
             return True
 
+    #takes whatever is in the buffer, splits it up then calls command handler
     def parse_buffer(self):
         lines = self.line_regex.split(self.rec_buffer)
         self.rec_buffer = lines[-1]
@@ -64,7 +66,7 @@ class Client(object):
             else:
                 self.register_client(command_args)
 
-
+    #method called if its a new client, sets up name, nick ect
     def register_client(self,args):
         if(args[0] == "USER"):
             if(len(args) < 5):
@@ -88,6 +90,7 @@ class Client(object):
 
             self.send_reg_replies() #need to implement
 
+    #welcome messages when first connected
     def send_reg_replies(self):
         self.RPL_WELCOME()
         self.RPL_YOURHOST()
@@ -96,14 +99,13 @@ class Client(object):
         self.RPL_LUSERCLIENT()
         self.ERR_NOMOTD()
 
-
+    #command handler for all commands
     def handle_command(self, args):
         command = args[0]
 
-        #def all commands, ie join, privmsg etc
+        #method to join channel
         def join():
             if len(args) < 2 :
-                #print("no channel name given")
                 ERR_NEEDMOREPARAMS("JOIN")
                 return
             if (args[1].find("#") != -1):
@@ -121,7 +123,6 @@ class Client(object):
                 self.reply("JOIN", "", self.sender(), channel = channel)
 
                 self.reply("332",":this is a channel topic", channel =  channel)
-                #RPL_TOPIC(channel)
 
                 members = ""
                 for client in self.channels[channel].members.values():
@@ -129,7 +130,7 @@ class Client(object):
                 self.reply("353","= #%s :@%s" % (channel, members))
                 self.reply("366",":End of NAMES list", channel = channel)
 
-
+        #method to leave channel
         def part():
             if len(args) < 2 :
                 ERR_NEEDMOREPARAMS("PART")
@@ -146,7 +147,7 @@ class Client(object):
                     else:
                         ERR_NOSUCHCHANNEL(name)
 
-            #look at
+        #method to set nickname
         def nick():
             if len(args) < 2:
                 self.ERR_NONICKNAMEGIVEN()
@@ -164,6 +165,7 @@ class Client(object):
             else:
                 self.ERR_NICKNAMEINUSE()
 
+        #method to preform private message
         def privmsg():
             if (len(args) < 3):
                 self.ERR_NEEDMOREPARAMS("PRIVMSG")
@@ -194,15 +196,16 @@ class Client(object):
                         self.ERR_NOSUCHNICK(reciever)
                         return
 
+        #ping and pong method
         def pong():
             self.ping_sent = False
-
         def ping():
             if len(args) < 2:
                 ERR_NOORIGIN()
             else:
                 self.reply("PONG", ":%s" % args[1])
 
+        #method to set topic
         def topic():
             #print("topic")
             if len(args) < 2:
@@ -223,7 +226,7 @@ class Client(object):
                 new_topic = args[2]
                 channel._topic = new_topic
 
-            #need to edit
+        #Method to leave server (need to edit)-----------------------this still need editied? -john
         def quit(self, arguments):
             #print("quit")
             if len(arguments) == 0:
@@ -232,7 +235,7 @@ class Client(object):
                 quitMsg = arguments[0]
             self.disconnect(quitMsg)
 
-
+        #switch case calls relevant command
         command_handlers = {
         "JOIN" : join,
         "PART" : part,
@@ -253,6 +256,7 @@ class Client(object):
             print("no handler for command/ reply number")
             self.ERR_UNKNOWNCOMMAND(command)
 
+    #reads whatever is coming from socket into buffer
     def socket_readable(self):
         read_data = ""
         try:
@@ -260,14 +264,13 @@ class Client(object):
             self.rec_buffer += read_data.decode()
             self.last_recieve = time.time()
             self.parse_buffer()
-            #print(self.rec_buffer)
         except socket.error as e:
             read_data = ""
 
         if not read_data:
             self.disconnect("connection died")
 
-
+    #checks if other side is still there, using ping and pong
     def check_connected(self):
         if (self.last_recieve + 15 < time.time()):
             if (self.ping_sent and self.last_recieve + 30 < time.time()):
@@ -276,7 +279,7 @@ class Client(object):
                 self.message("PING :" + self.server.hostname)
                 self.ping_sent = True
 
-
+    #if no response from ping, disconnect
     def disconnect(self, message):
         print("dis")
         self.reply("QUIT", ":%s" % message)
@@ -288,10 +291,12 @@ class Client(object):
         self.socket.close()
         #remove client & close socket
 
+    #writes message to buffer
     def message(self, message):
         self.write_buffer += (message + "\r\n")
         print(">>> " + message)
 
+    #writes to socket
     def socket_write(self):
         try:
             sent = self.socket.send((self.write_buffer).encode())
@@ -299,9 +304,7 @@ class Client(object):
         except socket.error as e:
             self.disconnect("socket error")
 
-
-
-
+    #reply message with sender, command, nick and message
     def reply(self, command, message = "", sender = "", nick = "", channel = ""):
         if (sender == ""):
             sender = self.server.hostname
@@ -372,7 +375,7 @@ class Client(object):
         self.reply("331", "%s :%s" % (channel.name, channel._topic))
 
 class Server(object):
-
+    #set up all Server variables
     def __init__(self):
         self.channels = {}
         self.clients = {}
@@ -384,20 +387,17 @@ class Server(object):
         self.rec_buffer = ""
         self.line_regex = re.compile(r"\r?\n")
 
+    #set up socket connection
     def connect_socket(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((self.ip, self.port))
         self.socket.listen()
 
+    #run server
     def run(self):
-        # Create a socket, set up, and listening for new connections
+        #sets up socket
         self.connect_socket()
 
-
-        # List of sockets and clients
-
-
-        #print("Listening for connections on: " +ip+" Port: "+str(port)+"")
         runtime = time.time()
         last_check = time.time()
 
@@ -443,26 +443,17 @@ class Server(object):
 
 
 class Channel(object):
+    #set up all channel variables
     def __init__(self, name):
         self.name = name
         self.members = {}
         self._topic = ""
-        #add people
-        #remove people
 
-
-# client = Client("","")
-# client.get_connection()
-# while True:
-#     client.socket_readable()
-#     if(not client.buffer_empty()):
-#         client.parse_buffer()
-#
-
-
+#main method
 def main():
     server = Server()
     server.run()
 
+#runs main
 if __name__ == "__main__":
     main()

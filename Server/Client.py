@@ -11,8 +11,7 @@ import argparse
 
 class IRCBot(object):
 
-
-
+    #set up all bot variables
     def __init__(self, ip = "127.0.0.1", user = "Bot", name = "Bot", nick = "Bot", channel = ""):
         self.ip = ip
         self.port = 6667
@@ -25,8 +24,7 @@ class IRCBot(object):
         self.line_regex = re.compile(r"\r?\n")
         self.test = True
 
-
-
+    #connect to server socket
     def connect(self):
         self.socket.connect((self.ip, self.port))
         self.socket.setblocking(False)
@@ -35,30 +33,31 @@ class IRCBot(object):
         if (self.channel != ""):
             self.send_msg("JOIN #" + self.channel)
 
+    #send message
     def send_msg(self, msg):
-
         print(">>> " + msg)
         self.socket.send((msg + "\r\n").encode())
 
+    #recieve message
     def recieve(self):
         try:
             self.rec_buffer += self.socket.recv(1000).decode()
-            #print(self.rec_buffer)
 
         except IOError as e:
-                # This is normal on non blocking connections - when there are no incoming data error is going to be raised
-                # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
-                # We are going to check for both - if one of them - that's expected, means no incoming data, continue as normal
-                # If we got different error code - something happened
+            # This is normal on non blocking connections - when there are no incoming data error is going to be raised
+            # Some operating systems will indicate that using AGAIN, and some using WOULDBLOCK error code
+            # We are going to check for both - if one of them - that's expected, means no incoming data, continue as normal
+            # If we got different error code - something happened                                                              (is this coppied or did this get typed) -john
             if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
                 print('Reading error: {}'.format(str(e)))
                 sys.exit()
 
-
+    #empty buffer
     def buffer_empty(self):
         if(self.rec_buffer == ""):
             return True
 
+    #takes whatever is in the buffer, splits it up then calls command handler
     def parse_buffer(self):
         lines = self.line_regex.split(self.rec_buffer)
         self.rec_buffer = lines[-1]
@@ -82,13 +81,9 @@ class IRCBot(object):
                 if (len(line_split) > 1):
                     msg = line_split[-1]
 
-            #print(str(command_args) + " > " + msg)
-
             self.handle_command(command_args,msg)
 
-
-
-
+    #command handler for all commands
     def handle_command(self, args, msg):
         command = ""
 
@@ -99,9 +94,11 @@ class IRCBot(object):
         else:
             return
 
+        #method to repond to ping
         def pong_handler():
             self.send_msg("PONG :" + msg)
 
+        #method to send private message
         def privmsg_handler():
             msg_from = args[0].split("!")[0]
             if(re.match("#", args[2])):
@@ -130,7 +127,7 @@ class IRCBot(object):
                 print(msg_from + ": " + msg)
                 self.send_msg("PRIVMSG " + msg_from + " :this is a :test")
 
-        #print(command)
+        #switch case to call relevant command
         command_handlers = {
             "PING": pong_handler,
             "PRIVMSG": privmsg_handler
@@ -139,10 +136,9 @@ class IRCBot(object):
         try:
             command_handlers[command]()
         except KeyError:
-            #print("no handler for command/ reply number")
             return
 
-
+    #stats connection, loops till it recieves messages, pareses them then does relevant command
     def run(self):
         self.connect()
         while True:
@@ -150,8 +146,8 @@ class IRCBot(object):
             if(not self.buffer_empty()):
                 self.parse_buffer()
 
+#main method, gives bot options
 def main():
-
     parser = argparse.ArgumentParser(description = "A bot for the irc protocol")
     parser.add_argument('--server', help="server to connect to (default = '127.0.0.1')", default = "127.0.0.1")
     parser.add_argument('--nick', help="nickname to use on the server (default = 'Bot')", default = "Bot")
@@ -169,5 +165,6 @@ def main():
     bot = IRCBot(ip = args.server, user = args.user, name = args.name, nick = args.nick, channel = args.channel)
     bot.run()
 
+#runs main method
 if __name__ == "__main__":
     main()
