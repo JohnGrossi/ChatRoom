@@ -302,7 +302,7 @@ class Client(object):
     #writes to socket
     def socket_write(self):
         try:
-            sent = self.socket.send((self.write_buffer).encode())
+            sent = self.socket.send(self.write_buffer.encode())
             self.write_buffer = self.write_buffer[sent:]
         except socket.error as e:
             self.disconnect("socket error")

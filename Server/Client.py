@@ -132,7 +132,7 @@ class IRCBot(object):
 
             else:
                 print(msg_from + ": " + msg)
-                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot, ludovic go suck a shitty dick")
+                self.send_msg("PRIVMSG " + msg_from + " :beep boop im a bot")
 
         def nick_in_use():
             self.register()
@@ -160,7 +160,7 @@ class IRCBot(object):
 #main method, gives bot options
 def main():
     parser = argparse.ArgumentParser(description = "A bot for the irc protocol")
-    parser.add_argument('--server', help="server to connect to (default = '127.0.0.1')", default = "127.0.0.1")
+    parser.add_argument('--server', help="server to connect to (default = '10.0.42.17')", default = "10.0.42.17")
     parser.add_argument('--nick', help="nicknames to use on the server, for multiple seperate with \",\" and no spaces (default = 'ProBot,ProBot_,ProBot__')", default = "ProBot,ProBot_,ProBot__")
     parser.add_argument('--user', help="username to use on the server (default = 'ProBot')", default = "ProBot")
     parser.add_argument('--name', help="real name to use on the server (default = 'ProBot')", default = "ProBot")
