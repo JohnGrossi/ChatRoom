@@ -136,7 +136,7 @@ class Client(object):
         #method to leave channel
         def part():
             if len(args) < 2 :
-                ERR_NEEDMOREPARAMS("PART")
+                self.ERR_NEEDMOREPARAMS("PART")
                 return
             channel_names = args[1:-1]
             print(args)
@@ -170,6 +170,30 @@ class Client(object):
                     self.ERR_ERRONEUSNICKNAME()
             else:
                 self.ERR_NICKNAMEINUSE()
+
+        #method to list channels and their topics
+        def list():
+            if len(args) < 2:
+                if len(self.server.channels) < 1: #if there are no channels
+                    self.RPL_LISTSTART()
+                    self.RPL_LISTEND()
+                    return
+                #list all channels and their topics
+                for channel_name in self.server.channels.keys():
+                    channel = self.server.channels.get(channel_name)
+                    self.RPL_LISTSTART()
+                    self.RPL_LIST(channel_name, channel._topic)
+                    self.RPL_LISTEND()
+            else:
+                #list topics of given channels
+                channel_names = args[1:-1]
+                for name in channel_names:
+                    if name in self.channels.keys():
+                        channel = self.server.channels.get(channel_name)
+                        self.RPL_LISTSTART()
+                        self.RPL_LIST(channel_name, channel._topic)
+                        self.RPL_LISTEND()
+
 
         #method to preform private message
         def privmsg():
@@ -207,13 +231,12 @@ class Client(object):
             self.ping_sent = False
         def ping():
             if len(args) < 2:
-                ERR_NOORIGIN()
+                self.ERR_NOORIGIN()
             else:
                 self.reply("PONG", ":%s" % args[1])
 
         #method to set topic
         def topic():
-            #print("topic")
             if len(args) < 2:
                 self.ERR_NEEDMOREPARAMS("TOPIC")
                 return
@@ -224,24 +247,23 @@ class Client(object):
             channel = self.channels.get(channel_name)
             if len(args) == 2:
                 if channel._topic is None:
-                    RPL_NOTOPIC(channel_name)
+                    self.RPL_NOTOPIC(channel_name)
                 else:
-                    RPL_TOPIC(channel)
+                    self.RPL_TOPIC(channel)
             else:
                 #set new topic
                 new_topic = args[2]
                 channel._topic = new_topic
 
-        #Method to leave server (need to edit)-----------------------this still need editied? -john
+        #Method to leave server
         def quit(self, arguments):
-            #print("quit")
             if len(arguments) == 0:
                 quitMsg = self.nickname
             else:
                 quitMsg = arguments[0]
             self.disconnect(quitMsg)
 
-        #switch case calls relevant command
+        #dictionary that contains all relevant commands
         command_handlers = {
         "JOIN" : join,
         "PART" : part,
@@ -334,6 +356,9 @@ class Client(object):
     def ERR_UNKNOWNCOMMAND(self, command):
         self.reply("421", "%s :Unknown command" % command)
 
+    def ERR_NOMOTD(self):
+        self.reply("422", ":no MOTD")
+
     def ERR_NONICKNAMEGIVEN(self):
         self.reply("431", ":No nickname given")
 
@@ -368,8 +393,14 @@ class Client(object):
     def RPL_LUSERCLIENT(self):
         self.reply("251", ":there are %d users" % len(self.server.clients))
 
-    def ERR_NOMOTD(self):
-        self.reply("422", ":no MOTD")
+    def RPL_LISTSTART(self):
+        self.reply("321", "Channel :Users Name")
+    
+    def RPL_LIST(self, channel_name, topic):
+        self.reply("322", "%s :%s" % (channel_name, topic))
+    
+    def RPL_LISTEND(self):
+        self.reply("323", ":End of /LIST")
 
     def RPL_NOTOPIC(self, channel_name):
         self.reply("331", "%s :No topic is set" % channel_name)
