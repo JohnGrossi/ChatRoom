@@ -111,6 +111,8 @@ class Client(object):
                 return
             if (args[1].find("#") != -1):
                 channel = args[1].strip("#")
+            else:
+                channel = args[1]
             if (channel in self.server.channels.keys()):
                 self.server.channels[channel].members[self.nick] = self
                 self.channels[channel] = self.server.channels[channel]
@@ -129,8 +131,8 @@ class Client(object):
 
             members = ""
             for client in self.channels[channel].members.values():
-                members += " %s" % client.nick
-            self.reply("353","= #%s :@%s" % (channel, members))
+                members += "%s " % client.nick
+            self.reply("353","= #%s :%s" % (channel, members))
             self.reply("366",":End of NAMES list", channel = channel)
 
         #method to leave channel
@@ -395,10 +397,10 @@ class Client(object):
 
     def RPL_LISTSTART(self):
         self.reply("321", "Channel :Users Name")
-    
+
     def RPL_LIST(self, channel_name, topic):
         self.reply("322", "%s :%s" % (channel_name, topic))
-    
+
     def RPL_LISTEND(self):
         self.reply("323", ":End of /LIST")
 
@@ -415,7 +417,7 @@ class Server(object):
         self.clients = {}
         self.nicknames = {}
         self.port = 6667
-        self.ip = "127.0.0.1"
+        self.ip = "10.0.42.17"
         self.hostname = socket.getfqdn(socket.gethostname())
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.rec_buffer = ""
